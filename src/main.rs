@@ -1,11 +1,12 @@
-use std::sync::{Arc, Mutex};
-
 use axum::{
-    extract::{Multipart, State, TypedHeader},
+    extract::{DefaultBodyLimit, Multipart, State, TypedHeader},
     headers::Cookie,
     routing::{get, post},
     Router,
 };
+use std::sync::{Arc, Mutex};
+
+static UPLOAD_PATH: &str = "upload";
 
 #[derive(Clone)]
 struct AppState {
@@ -15,8 +16,19 @@ struct AppState {
 
 async fn upload(mut multipart: Multipart) {
     use std::io::Write;
+    use std::path::Path;
     while let Some(mut field) = multipart.next_field().await.unwrap() {
-        let filepath = format!("uploads/{}", uuid::Uuid::new_v4().to_string());
+        let original_name = field.file_name().unwrap();
+        dbg!(original_name);
+        let ext = Path::new(original_name)
+            .extension()
+            .unwrap_or_default()
+            .to_str()
+            .unwrap();
+        let filepath = Path::new(UPLOAD_PATH)
+            .join(uuid::Uuid::new_v4().to_string())
+            .with_extension(ext);
+        println!("{} -> {}", original_name, filepath.display());
         let mut file = std::fs::File::create(filepath).unwrap();
         while let Ok(Some(chunk)) = field.chunk().await {
             file.write_all(&chunk).unwrap();
@@ -36,14 +48,22 @@ async fn test(State(state): State<AppState>, TypedHeader(cookie): TypedHeader<Co
 #[tokio::main]
 async fn main() {
     println!("Hello, world!");
+    if !std::path::Path::new(UPLOAD_PATH).exists() {
+        println!("Creating upload directory");
+        std::fs::create_dir(UPLOAD_PATH).unwrap();
+    }
     let app_state = AppState {
         token: uuid::Uuid::new_v4().to_string(),
         data: Arc::new(Mutex::new("".to_owned())),
     };
-    println!("token: {}", app_state.token);
+    println!(
+        "TIP: Run this code in console to login:\ndocument.cookie='token={}'",
+        app_state.token
+    );
     let app = Router::new()
         .route("/upload", post(upload))
         .route("/test", get(test))
+        .layer(DefaultBodyLimit::disable())
         .with_state(app_state);
     axum::Server::bind(&"0.0.0.0:3000".parse().unwrap())
         .serve(app.into_make_service())
