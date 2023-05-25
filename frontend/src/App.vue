@@ -7,6 +7,18 @@ const convert_webp = ref(false);
 const upload_ref = ref<UploadInst>();
 const file_list = ref<UploadFileInfo[]>([]);
 const test_url = "422a9d4d-0e57-48d4-b11c-26ba4cb20e9f.jpg";
+const uploaded_list = ref<string[]>([]);
+const onFinish = ({
+  file,
+  event
+}: {
+  file: UploadFileInfo
+  event?: ProgressEvent
+}) => {
+  if (!event || !event.target) { return file };
+  uploaded_list.value.push((event.target as XMLHttpRequest).response);
+  return file
+};
 onMounted(() => {
   window.addEventListener('paste', (event: ClipboardEvent) => {
     const files = event.clipboardData?.files;
@@ -32,7 +44,8 @@ onMounted(() => {
           <n-switch v-model:value="convert_webp" />
           <n-text>转换为 webp 格式</n-text>
         </n-space>
-        <n-upload multiple action="/upload" v-model:file-list="file_list" ref="upload_ref" style="min-width: 480px;">
+        <n-upload multiple action="/upload" v-model:file-list="file_list" ref="upload_ref" style="min-width: 480px;"
+          @finish="onFinish">
           <n-upload-dragger>
             <div style="margin-bottom: 12px">
               <n-icon size="48" :depth="3">
@@ -44,13 +57,18 @@ onMounted(() => {
                 </svg>
               </n-icon>
             </div>
-            <n-text style="font-size: 16px">
-              点击或者拖动文件到此区域
-            </n-text>
+            <div style="font-size: 16px">
+              点击或者拖动图片文件到此处上传
+            </div>
+            <div style="font-size: 16px">
+              或按 Ctrl+V 粘贴剪贴板图片
+            </div>
           </n-upload-dragger>
         </n-upload>
       </n-space>
-      <image-item :url="test_url" />
+      <n-space vertical>
+        <image-item v-for="url in uploaded_list" :url="url" />
+      </n-space>
     </n-message-provider>
   </n-config-provider>
 </template>

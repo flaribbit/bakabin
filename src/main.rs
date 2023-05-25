@@ -4,7 +4,10 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use std::sync::{Arc, Mutex};
+use std::{
+    borrow::Borrow,
+    sync::{Arc, Mutex},
+};
 
 static UPLOAD_PATH: &str = "upload";
 
@@ -14,9 +17,10 @@ struct AppState {
     data: Arc<Mutex<String>>,
 }
 
-async fn upload(mut multipart: Multipart) {
+async fn upload(mut multipart: Multipart) -> String {
     use std::io::Write;
     use std::path::Path;
+    let mut ret = Vec::new();
     while let Some(mut field) = multipart.next_field().await.unwrap() {
         let original_name = field.file_name().unwrap();
         dbg!(original_name);
@@ -25,15 +29,15 @@ async fn upload(mut multipart: Multipart) {
             .unwrap_or_default()
             .to_str()
             .unwrap();
-        let filepath = Path::new(UPLOAD_PATH)
-            .join(uuid::Uuid::new_v4().to_string())
-            .with_extension(ext);
-        println!("{} -> {}", original_name, filepath.display());
-        let mut file = std::fs::File::create(filepath).unwrap();
+        let filename = format!("{}.{}", uuid::Uuid::new_v4(), ext);
+        println!("{} -> {}", original_name, filename);
+        let mut file = std::fs::File::create(format!("{}/{}", UPLOAD_PATH, filename)).unwrap();
         while let Ok(Some(chunk)) = field.chunk().await {
             file.write_all(&chunk).unwrap();
         }
+        ret.push(filename);
     }
+    ret.join("\n")
 }
 
 async fn test(State(state): State<AppState>, TypedHeader(cookie): TypedHeader<Cookie>) -> String {
