@@ -4,12 +4,10 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use std::{
-    borrow::Borrow,
-    sync::{Arc, Mutex},
-};
+use std::sync::{Arc, Mutex};
+use tower_http::services::ServeDir;
 
-static UPLOAD_PATH: &str = "upload";
+static IMAGE_PATH: &str = "image";
 
 #[derive(Clone)]
 struct AppState {
@@ -31,7 +29,7 @@ async fn upload(mut multipart: Multipart) -> String {
             .unwrap();
         let filename = format!("{}.{}", uuid::Uuid::new_v4(), ext);
         println!("{} -> {}", original_name, filename);
-        let mut file = std::fs::File::create(format!("{}/{}", UPLOAD_PATH, filename)).unwrap();
+        let mut file = std::fs::File::create(format!("{}/{}", IMAGE_PATH, filename)).unwrap();
         while let Ok(Some(chunk)) = field.chunk().await {
             file.write_all(&chunk).unwrap();
         }
@@ -52,9 +50,9 @@ async fn test(State(state): State<AppState>, TypedHeader(cookie): TypedHeader<Co
 #[tokio::main]
 async fn main() {
     println!("Hello, world!");
-    if !std::path::Path::new(UPLOAD_PATH).exists() {
-        println!("Creating upload directory");
-        std::fs::create_dir(UPLOAD_PATH).unwrap();
+    if !std::path::Path::new(IMAGE_PATH).exists() {
+        println!("Creating images directory");
+        std::fs::create_dir(IMAGE_PATH).unwrap();
     }
     let app_state = AppState {
         token: uuid::Uuid::new_v4().to_string(),
@@ -68,6 +66,7 @@ async fn main() {
         .route("/upload", post(upload))
         .route("/test", get(test))
         .layer(DefaultBodyLimit::disable())
+        .nest_service("/image", ServeDir::new(IMAGE_PATH))
         .with_state(app_state);
     axum::Server::bind(&"0.0.0.0:3000".parse().unwrap())
         .serve(app.into_make_service())

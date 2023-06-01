@@ -7,6 +7,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/upload': 'http://localhost:3000',
+      '/image': 'http://localhost:3000'
     }
   }
 })

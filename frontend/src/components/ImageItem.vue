@@ -2,7 +2,7 @@
 import { NInputGroup, NInput, NButton, NInputGroupLabel, NIcon, NSpace } from 'naive-ui'
 import { useMessage } from 'naive-ui'
 const props = defineProps<{ url: string }>();
-const full_url = `${location.origin}/images/${props.url}`
+const full_url = `${location.origin}/image/${props.url}`
 const markdown = `![](${full_url})`
 const message = useMessage();
 const copy = (text: string) => {
@@ -16,6 +16,7 @@ const copy = (text: string) => {
 
 <template>
   <n-space vertical>
+    <div class="image" :style="`background-image: url(${full_url})`"></div>
     <n-input-group>
       <n-input-group-label>
         <n-icon>
@@ -46,4 +47,11 @@ const copy = (text: string) => {
   </n-space>
 </template>
 
-<style></style>
+<style>
+.image {
+  width: 100%;
+  height: 160px;
+  background-size: cover;
+  background-position: center;
+}
+</style>
