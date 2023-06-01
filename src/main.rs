@@ -5,7 +5,7 @@ use axum::{
     Router,
 };
 use std::sync::{Arc, Mutex};
-use tower_http::services::ServeDir;
+use tower_http::services::{ServeDir, ServeFile};
 
 static IMAGE_PATH: &str = "image";
 
@@ -49,7 +49,6 @@ async fn test(State(state): State<AppState>, TypedHeader(cookie): TypedHeader<Co
 
 #[tokio::main]
 async fn main() {
-    println!("Hello, world!");
     if !std::path::Path::new(IMAGE_PATH).exists() {
         println!("Creating images directory");
         std::fs::create_dir(IMAGE_PATH).unwrap();
@@ -62,10 +61,13 @@ async fn main() {
         "TIP: Run this code in console to login:\ndocument.cookie='token={}'",
         app_state.token
     );
+    let frontend_service = ServeDir::new("/frontend/dist")
+        .not_found_service(ServeFile::new("/frontend/dist/index.html"));
     let app = Router::new()
         .route("/upload", post(upload))
         .route("/test", get(test))
         .layer(DefaultBodyLimit::disable())
+        .fallback_service(frontend_service)
         .nest_service("/image", ServeDir::new(IMAGE_PATH))
         .with_state(app_state);
     axum::Server::bind(&"0.0.0.0:3000".parse().unwrap())
